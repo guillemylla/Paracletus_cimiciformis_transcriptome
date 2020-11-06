@@ -169,7 +169,7 @@ as.data.frame(DEA_results) %>%
 ```
 
 ```{r}
-write.csv(DEA_results, file = "Data/DEA_results.csv")
+#write.csv(DEA_results, file = "Data/DEA_results.csv")
 ```
 
 
