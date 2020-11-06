@@ -1,0 +1,176 @@
+---
+title: "DEA analysis"
+author:
+- affiliation: Harvard University
+  name: Guillem Ylla
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r include=FALSE}
+library(readr)
+library(DESeq2)
+library(ggplot2)
+library(viridis)
+library(tidyr)
+library(dplyr)
+library(plyr)
+library(tibble)
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(cache = TRUE)
+knitr::opts_chunk$set(warning =  FALSE)
+knitr::opts_chunk$set(message  =  FALSE)
+```
+
+------------------------------------------------
+
+## Load data
+
+- Load table of counts
+
+
+```{r}
+Counts_table<-read.csv("Data/paracletus.isoform.counts.matrix", sep="\t", row.names = 1, stringsAsFactors = FALSE)
+```
+
+- Generate design matrix
+
+```{r}
+Design_matrix<-data.frame(Sample_names=colnames(Counts_table), Biological_condition=sapply(strsplit(colnames(Counts_table),"_rep"), `[`, 1))
+rownames(Design_matrix)<-Design_matrix$Sample_names
+head(Design_matrix)
+
+```
+
+- Check column names of Design matrix are in teh same order than colnames in counts table.
+
+```{r}
+identical(rownames(Design_matrix), colnames(Counts_table))
+```
+
+## Explore RAW data  
+  
+```{r}
+
+Counts_table %>%  
+  rownames_to_column("Gene") %>%
+  pivot_longer(cols=contains("morph"), names_to = "Sample", values_to = "counts") %>% 
+  group_by(Sample) %>% 
+  dplyr::summarise(Counts_sum = sum(counts)) %>% 
+  separate(Sample, c("Bio_name","rep" ),sep=("_rep"), remove=F) %>% 
+  ggplot(., aes(x=Sample, y=Counts_sum, fill=Bio_name))+
+      geom_bar(stat="identity")+
+      ggtitle("Raw counts per sample")+xlab("")+ylab("Counts")
+```
+
+  
+```{r}
+
+Counts_table %>%  
+  pivot_longer(cols = colnames(Counts_table), names_to = "Sample", values_to = "counts") %>% 
+  group_by(Sample) %>% 
+  separate(Sample, c("Bio_name","rep" ),sep=("_rep"), remove=F) %>% 
+  ggplot(., aes(x=Sample, y=counts, fill=Bio_name))+
+      geom_boxplot()+scale_y_continuous(trans='log10')+
+      ggtitle("Raw counts per sample")+xlab("")+ylab("Counts - Log10")
+```
+
+
+## Load data to DEseq2
+
+```{r}
+
+dds <- DESeqDataSetFromMatrix(countData = round(Counts_table,0),
+                              colData = Design_matrix,
+                              design= ~  Biological_condition)
+dds
+```
+
+- Get normalized counts
+
+```{r}
+Table_vst<-assay(vst(dds))
+head(Table_vst)
+#write.csv(Table_vst, file = "Data/Table_vst.csv")
+#Table_vst<-read.csv( file = "Data/Table_vst.csv")
+```
+
+- Explore VST ronamlized counts
+
+```{r}
+
+as.data.frame(Table_vst) %>%
+ rownames_to_column("Gene") %>%  
+ pivot_longer(cols=contains("morph"), values_to = "VST", names_to = "Sample") %>% 
+  separate(Sample, c("Bio_name","rep" ),sep=("_rep"), remove=F) %>% 
+ggplot(., aes(x=Sample, y=VST, fill=Bio_name))+
+      geom_boxplot()+scale_y_continuous(trans='log10')+
+      ggtitle("Raw counts per sample")+xlab("")+ylab("Counts - Log10")
+
+```
+
+- PCA all genes
+
+```{r}
+as.data.frame(Table_vst) %>%
+ rownames_to_column("Gene") %>%  
+ pivot_longer(cols=contains("morph"), values_to = "VST", names_to = "Sample") %>% 
+  separate(Sample, c("Bio_name","rep" ),sep=("_rep"), remove=F) 
+
+
+
+
+# Do PCA
+PCA <- prcomp(t(as.data.frame(Table_vst)))
+
+# Extract PC axes for plotting
+PCAvalues <- data.frame(samples=sapply(strsplit(colnames(Counts_table),"_rep"), `[`, 1), PCA$x)
+PCAvalues
+
+# Plot
+ggplot(PCAvalues, aes(x = PC1, y = PC2, colour = samples)) +
+    geom_point(size = 3)
+
+```
+
+- The PC2 clearly separates the 2 morfs.
+
+
+
+
+## DEA 
+
+```{r }
+dds<- DESeq2::DESeq(dds)
+
+
+DEA_results <-results(dds, contrast=c("Biological_condition","F_morph","R_morph"), alpha=0.01)
+
+summary(DEA_results)
+```
+
+```{r}
+plotMA(DEA_results, ylim=c(-12,12), main="F_morph vs R_morph")
+```
+
+
+```{r}
+as.data.frame(DEA_results) %>% 
+  rownames_to_column("Gene") %>% 
+  arrange(padj) %>% 
+  head(50)
+```
+
+
+```{r}
+ table(DEA_results[which(DEA_results$padj<0.01),]$log2FoldChange>0)
+```
+
+```{r}
+write.csv(DEA_results, file = "Data/DEA_results.csv")
+```
+
+
+  
