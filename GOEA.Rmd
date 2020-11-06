@@ -1,0 +1,447 @@
+---
+title: "GO Enrichment Analysis"
+author:
+- affiliation: Harvard University
+  name: Guillem Ylla
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+library(dplyr)
+library(tidyr)
+library(plyr)
+library(viridis)
+library(ggrepel)# avodi overlaping labels
+library(forcats)#reorder levels ijn factors
+library(RColorBrewer)
+library(ComplexHeatmap)
+library(clusterProfiler)
+library(enrichplot)
+library(stringr)
+library(RColorBrewer)
+knitr::opts_chunk$set(fig.width = 10)
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(cache = TRUE)
+knitr::opts_chunk$set(warning =  FALSE)
+knitr::opts_chunk$set(message  =  FALSE)
+```
+
+# Load data
+
+
+## Load the Differentially Expression Analysis results obtained by Miquel.
+
+```{r message=FALSE, warning=FALSE}
+DEG<-read.csv("Data/DEA_results.csv")
+names(DEG)[names(DEG) == "X"] <-"transcript_id"
+# head(DEG)
+# dim(DEG)
+```
+
+## Load the transcriptome annotations
+
+```{r}
+Raw_Annots<-read.csv("Data/Annotated_Transcriptome_summarisedbyTranscript_V5.tsv", sep="\t")## File toobig for GitHub. Contact me if you need it.
+#dim(Raw_Annots)
+#Raw_Annots
+```
+
+## Join DEG list and Annotatiosn
+
+```{r}
+DEG_Annots<-DEG %>%
+  left_join(., Raw_Annots, by=("transcript_id" ) )
+
+#DEG_Annots
+```
+
+### PCA all genes
+
+```{r}
+Table_vst<-read.csv("Data/Table_vst.csv",  row.names = 1)
+
+Design_matrix<-data.frame(Sample_names=colnames(Table_vst), Biological_condition=sapply(strsplit(colnames(Table_vst),"_rep"), `[`, 1))
+rownames(Design_matrix)<-Design_matrix$Sample_names
+```
+
+```{r}
+# Do PCA
+PCA <- prcomp(t(as.data.frame(Table_vst)))
+# Extract PC axes for plotting
+PCAvalues <- data.frame(samples=sapply(strsplit(colnames(Table_vst),"_rep"), `[`, 1), PCA$x)
+#summary(PCA)
+
+
+# Plot
+ggplot(PCAvalues, aes(x = PC1, y = PC2, colour = samples)) +
+    geom_point(size = 3)+
+    xlab(paste0("PC1: ",round(summary(PCA)$importance[2,"PC1"]*100,2),"% variance")) +
+   ylab(paste0("PC2: ",round(summary(PCA)$importance[2,"PC2"]*100,2),"% variance")) +
+    geom_text_repel(label = rownames(PCAvalues), size=3)+
+  ggtitle("PCA - All genes - VST")
+```
+
+
+### PCA with DEA genes only
+
+```{r}
+List_DEA_genes<-DEG[which(DEG$padj<0.01),"transcript_id"]
+#length(List_DEA_genes)
+
+DEA_genes_vst<-Table_vst[which(rownames(Table_vst) %in% List_DEA_genes),]
+#dim(DEA_genes_vst) 
+
+# Do PCA
+PCA_DEgenes <- prcomp(t(as.data.frame(DEA_genes_vst)))
+# Extract PC axes for plotting
+#PCAvalues_DEgenes <- data.frame(samples=sapply(strsplit(colnames(DEA_genes_vst),"_rep"), `[`, 1), PCA$x)
+
+PCAvalues_DEgenes <- data.frame(samples=sapply(strsplit(colnames(DEA_genes_vst),"_rep"), `[`, 1), PCA_DEgenes$x)
+#summary(PCAvalues_DEgenes)
+
+
+# Plot
+ggplot(PCAvalues_DEgenes, aes(x = PC1, y = PC2, colour = samples)) +
+    geom_point(size = 3)+
+    xlab(paste0("PC1: ",round(summary(PCA_DEgenes)$importance[2,"PC1"]*100,2),"% variance")) +
+   ylab(paste0("PC2: ",round(summary(PCA_DEgenes)$importance[2,"PC2"]*100,2),"% variance")) +
+  geom_text_repel(label = rownames(PCAvalues_DEgenes), size=3)+
+  ggtitle("PCA - All genes - VST")
+```
+
+
+
+
+## Create an Organism Packages with AnnotationForge.
+
+```{r}
+library(AnnotationForge)
+
+Gene_Table<-data.frame(GID=DEG_Annots$transcript_id,
+                       BlastX=DEG_Annots$sprot_Top_BLASTX_hit,
+                       BlastP=DEG_Annots$sprot_Top_BLASTP_hit,
+                       BlastX_Name=DEG_Annots$BlastX_ProtName,
+                       BlastP_Name=DEG_Annots$BlastP_ProtName,
+                       BlastSppHit=DEG_Annots$SPECIES)
+
+GoTable<-DEG_Annots %>%
+  dplyr::select("transcript_id","PfamBlastGos_UNIQ_clean") %>%
+  separate_rows(. ,"PfamBlastGos_UNIQ_clean", sep=";") %>%
+  filter(!is.na(PfamBlastGos_UNIQ_clean)) %>%
+  filter(!str_detect(PfamBlastGos_UNIQ_clean, '\\.')) %>%
+  dplyr::rename(GID="transcript_id" , GO="PfamBlastGos_UNIQ_clean") %>%
+  tibble::add_column(EVIDENCE="IEA") %>%
+  as.data.frame()
+
+
+## Too big for GitHub, contact me if you need the package.
+# makeOrgPackage(gene_info=Gene_Table, go=GoTable,
+#                       version = "0.1",
+#                      maintainer="Some One <so@someplace.org>",
+#                      author="Some One <so@someplace.org>",
+#                        outputDir = "/home/ysland/Documents/Paracletus_project/RNA_seq_data/",
+#                        tax_id = "223034.",
+#                        genus = "Paracletus",
+#                        species = "cimiciformis",
+#                        goTable="go")
+# 
+# 
+# ## then you can call install.packages based on the return value
+```
+
+
+
+# Gene Ontology Enroichment Analysis on DE genes by Morf
+
+```{r}
+library("org.Pcimiciformis.eg.db")
+
+table(DEG[which(DEG$padj<0.01),]$log2FoldChange>0)
+```
+
+
+## DEA p-value <0.01
+
+```{r  echo=T, message=FALSE, warning=FALSE, comment=FALSE, include=TRUE, results='hide'}
+library(org.Pcimiciformis.eg.db)
+
+
+
+GENESList<-list(
+  DEA_genes_Up_FM=DEG[which(DEG$padj<0.01 & DEG$log2FoldChange>0),"transcript_id"],
+  DEA_genes_Up_RM=DEG[which(DEG$padj<0.01 & DEG$log2FoldChange<0),"transcript_id"]
+)
+
+
+table(GENESList$DEA_genes_Up_FM %in% GoTable$GID)
+table(GENESList$DEA_genes_Up_RM %in% GoTable$GID)
+
+DE_byMorf_BP<- compareCluster(geneCluster = GENESList,
+                      OrgDb= org.Pcimiciformis.eg.db, 
+                      keyType = 'GID',
+                      fun = "enrichGO",
+                      ont  = "BP",
+                      pvalueCutoff  = 0.05,
+                      pAdjustMethod= "BH", 
+                      qvalueCutoff  = 0.05,
+                      readable=FALSE)
+
+
+DE_byMorf_MF<- compareCluster(geneCluster = GENESList,
+                      OrgDb= org.Pcimiciformis.eg.db, 
+                      keyType = 'GID',
+                      fun = "enrichGO",
+                      ont  = "MF",
+                      pvalueCutoff  = 0.05,
+                      pAdjustMethod= "BH", 
+                      qvalueCutoff  = 0.05,
+                      readable=FALSE)
+
+DE_byMorf_CC<- compareCluster(geneCluster = GENESList,
+                      OrgDb= org.Pcimiciformis.eg.db, 
+                      keyType = 'GID',
+                      fun = "enrichGO",
+                      ont  = "CC",
+                      pvalueCutoff  = 0.05,
+                      pAdjustMethod= "BH", 
+                      qvalueCutoff  = 0.05,
+                      readable=FALSE)
+
+
+#annotationDbi::select(org.Pcimiciformis.eg.db,keys=DE_genes_Groups_long$Gene,columns=c("ENTREZID", "SYMBOL","GENENAME","FLYBASECG" ),keytype="FLYBASE")
+
+# write.csv(DE_byMorf_BP, file = "DE_p001_byMorf_BP.csv")
+# write.csv(DE_byMorf_MF, file = "DE_p001_byMorf_MF.csv")
+# write.csv(DE_byMorf_CC, file = "DE_p001_byMorf_CC.csv")
+
+```
+
+<!-- ```{r} -->
+<!-- A<- clusterProfiler::groupGO(gene = GENESList$DEA_genes_Up_FM, -->
+<!--                       OrgDb= org.Pcimiciformis.eg.db,  -->
+<!--                       keyType = 'GID', -->
+<!--                       ont  = "BP", -->
+<!--                       level=3, -->
+<!--                       readable=FALSE) -->
+<!-- #enrichGO doesn’t contain parameter to restrict the test at specific GO level. Instead, we provide a function gofilter to restrict the result at specific GO level. It works with results obtained from both enrichGO and compareCluster. -->
+
+<!-- gofilter(DE_byMorf_MF, level=3) -->
+<!-- ``` -->
+
+### Biological Process
+
+```{r, fig.height=10}
+dotplot(DE_byMorf_BP , showCategory=50, includeAll=TRUE)+ggtitle("Significant GO terms enrich in DE genes (p<0.01)  -- BP ")
+
+```
+
+```{r}
+ emapplot(DE_byMorf_BP,layout="nicely")+ggtitle("Significant GO terms enrich in DE genes (p<0.01)  -- BP ")
+```
+
+#### Restrict to Level 5
+
+```{r}
+DE_byMorf_BP_Simplified_level<-gofilter(DE_byMorf_BP, level=6) 
+dotplot(DE_byMorf_BP_Simplified_level , showCategory=50, includeAll=TRUE)+ggtitle("Significant GO terms enrich in DE genes (p<0.01)  -- BP -- Level 6")
+
+```
+
+##### Example: trehalose
+
+```{r}
+GO0005991<-DE_byMorf_BP_Simplified_level@compareClusterResult[which(DE_byMorf_BP_Simplified_level@compareClusterResult$Description=="trehalose metabolic process"),]
+GO0005991
+
+
+GO0005991_list<-list(
+  Up_FM=unlist(strsplit(GO0005991[which(GO0005991$Cluster=="DEA_genes_Up_FM"),"geneID"], "/")),
+  Up_RM=unlist(strsplit(GO0005991[which(GO0005991$Cluster=="DEA_genes_Up_RM"),"geneID"], "/"))
+)
+
+
+VennDiagram::venn.diagram(GO0005991_list,
+                            category.names =names(GO0005991_list),
+                          output=TRUE,
+                        filename = "Venn_GO0005991.png" ,
+                        imagetype="png",
+                        # Set names
+                      cat.cex = 0.6,
+                     fill =  viridis(2))
+
+GO0005991_list
+```
+
+![venn](Venn_GO0005991.png)
+
+
+#### Simplified
+
+
+```{r}
+#The simplify method apply ‘select_fun’ (which can be a user defined function) to feature ‘by’ to select one representative terms from redundant terms (which have similarity higher than ‘cutoff').
+DE_byMorf_BP_Simplified <- clusterProfiler::simplify(DE_byMorf_BP, cutoff=0.7, by="p.adjust", select_fun=min)
+```
+
+
+```{r}
+dotplot(DE_byMorf_BP_Simplified , showCategory=50, includeAll=TRUE)+ggtitle("Significant GO terms enrich in DE genes (p<0.01)  -- BP -- Simplified")
+
+```
+
+
+
+### Molecular Function
+
+```{r, fig.width=20, fig.height=10}
+dotplot(DE_byMorf_MF , showCategory=50, includeAll=TRUE)+ggtitle("Significant GO terms enrich in DE genes (p<0.01)  -- MF ")
+
+```
+
+```{r}
+ emapplot(DE_byMorf_MF,layout="nicely")+ggtitle("Significant GO terms enrich in DE genes (p<0.01)  -- MF ")
+```
+
+
+### Cellular Component
+
+```{r}
+dotplot(DE_byMorf_CC , showCategory=50, includeAll=TRUE)+ggtitle("Significant GO terms enrich in DE genes (p<0.01)  -- CC ")
+
+```
+
+
+## DEA p-value <0.05
+```{r}
+ table(DEG[which(DEG$padj<0.05),]$log2FoldChange>0)
+
+
+GENESList_p005<-list(
+  DEA_genes_Up_FM=DEG[which(DEG$padj<0.05 & DEG$log2FoldChange>0),"transcript_id"],
+  DEA_genes_Up_RM=DEG[which(DEG$padj<0.05 & DEG$log2FoldChange<0),"transcript_id"]
+)
+```
+
+```{r  echo=T, message=FALSE, warning=FALSE, comment=FALSE, include=TRUE, results='hide'}
+
+
+
+
+
+
+DE_byMorf_BP_p005<- compareCluster(geneCluster = GENESList_p005,
+                      OrgDb= org.Pcimiciformis.eg.db, 
+                      keyType = 'GID',
+                      fun = "enrichGO",
+                      ont  = "BP",
+                      pvalueCutoff  = 0.05,
+                      pAdjustMethod= "BH", 
+                      qvalueCutoff  = 0.05,
+                      readable=FALSE)
+
+DE_byMorf_MF_p005<- compareCluster(geneCluster = GENESList_p005,
+                      OrgDb= org.Pcimiciformis.eg.db, 
+                      keyType = 'GID',
+                      fun = "enrichGO",
+                      ont  = "MF",
+                      pvalueCutoff  = 0.05,
+                      pAdjustMethod= "BH", 
+                      qvalueCutoff  = 0.05,
+                      readable=FALSE)
+
+DE_byMorf_CC_p005<- compareCluster(geneCluster = GENESList_p005,
+                      OrgDb= org.Pcimiciformis.eg.db, 
+                      keyType = 'GID',
+                      fun = "enrichGO",
+                      ont  = "CC",
+                      pvalueCutoff  = 0.05,
+                      pAdjustMethod= "BH", 
+                      qvalueCutoff  = 0.05,
+                      readable=FALSE)
+
+
+
+```
+
+
+### Biological Process
+
+```{r, fig.height=10}
+dotplot(DE_byMorf_BP_p005 , showCategory=100, includeAll=TRUE)+ggtitle("Significant GO terms enrich in DE genes (p<0.05)  -- BP ")
+
+```
+
+```{r}
+ emapplot(DE_byMorf_BP_p005,layout="nicely")+ggtitle("Significant GO terms enrich in DE genes (p<0.05)  -- BP ")
+```
+
+
+#### Simplified
+
+
+```{r}
+#The simplify method apply ‘select_fun’ (which can be a user defined function) to feature ‘by’ to select one representative terms from redundant terms (which have similarity higher than ‘cutoff').
+DE_byMorf_BP_p005_Simplified <- clusterProfiler::simplify(DE_byMorf_BP_p005, cutoff=0.7, by="p.adjust", select_fun=min)
+```
+
+
+```{r}
+dotplot(DE_byMorf_BP_p005_Simplified , showCategory=50, includeAll=TRUE)+ggtitle("Significant GO terms enrich in DE genes (p<0.05)  -- BP -- Simplified")
+
+```
+
+### Molecular Function
+
+```{r, fig.width=20, fig.height=10}
+dotplot(DE_byMorf_MF_p005 , showCategory=100, includeAll=TRUE)+ggtitle("Significant GO terms enrich in DE genes (p<0.05)  -- MF ")
+
+```
+
+```{r}
+ emapplot(DE_byMorf_MF_p005,layout="nicely")+ggtitle("Significant GO terms enrich in DE genes (p<0.05)  -- MF ")
+```
+
+```{r}
+GO0042302<-DE_byMorf_MF_p005@compareClusterResult[which(DE_byMorf_MF_p005@compareClusterResult$Description=="structural constituent of cuticle"),]
+GO0042302
+
+
+GO0042302_list<-list(
+  Up_FM=unlist(strsplit(GO0042302[which(GO0042302$Cluster=="DEA_genes_Up_FM"),"geneID"], "/")),
+  Up_RM=unlist(strsplit(GO0042302[which(GO0042302$Cluster=="DEA_genes_Up_RM"),"geneID"], "/"))
+)
+
+# 
+# VennDiagram::venn.diagram(GO0042302_list,
+#                             category.names =names(GO0042302_list),
+#                           output=TRUE,
+#                         filename = "Venn_GO0042302.png" ,
+#                         imagetype="png",
+#                         # Set names
+#                       cat.cex = 0.6,
+#                      fill =  viridis(2))
+
+GO0042302_list
+```
+
+![venn](Venn_GO0005991.png)
+
+
+### Cellular Component
+
+```{r}
+dotplot(DE_byMorf_CC_p005 , showCategory=100, includeAll=TRUE)+ggtitle("Significant GO terms enrich in DE genes (p<0.05)  -- CC ")
+
+```
+
+
+# Session info
+
+```{r}
+sessionInfo()
+```
+
