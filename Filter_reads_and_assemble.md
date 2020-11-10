@@ -1,10 +1,25 @@
-# Here are the instructions to perform an assembly as proposed by Guillem Ylla. First, filter out reads that belong to other organisms such as bacteria, human and virus. The rest is supposed be mainly aphid reads. To do so, we will remove reads that map against reference genomes from organisms we are not interested.
 
-# clean, high quality, trimmed reads were obtained following Jared Mamrot's instructions on protocols.io (see steps 2, 3 and 4 in https://www.researchgate.net/publication/320126152_De_novo_transcriptome_assembly_workflow)
+# *Paracletus cimiciformis* transcriptome
 
-# this is performed in ngsaphid computer
-cd /home/quelo/projects/paracletus/cleaned_trimmed_reads/filtered_reads
+- Authors: Miquel Barberà & Guillem Ylla, 2020
+- Citation ""
 
+
+## Read filtering
+
+- Before assembling the reads, we filter out those reads that belong to other organisms such as bacteria, human and virus. The rest is supposed be mainly aphid reads.
+ To do so, we will remove reads that map against reference genomes from organisms we are not interested.
+
+
+### Install software
+
+- Trinity
+- Salmon
+- Samtools
+- BUSCO
+- SortMeRNA
+
+```
 
 # Install latest(ish) versions of Trinity
 # it will require bowtie2, jellyfish and salmon
@@ -71,9 +86,11 @@ echo export PATH=\$PATH:`pwd`\ >> ~/.bashrc && source ~/.bashrc
 indexdb_rna --ref ./rRNA_databases/silva-bac-16s-id90.fasta,./index/silva-bac-16s-db:\./rRNA_databases/silva-bac-23s-id98.fasta,./index/silva-bac-23s-db:\./rRNA_databases/silva-arc-16s-id95.fasta,./index/silva-arc-16s-db:\./rRNA_databases/silva-arc-23s-id98.fasta,./index/silva-arc-23s-db:\./rRNA_databases/silva-euk-18s-id95.fasta,./index/silva-euk-18s-db:\./rRNA_databases/silva-euk-28s-id98.fasta,./index/silva-euk-28s:\./rRNA_databases/rfam-5s-database-id98.fasta,./index/rfam-5s-db:\./rRNA_databases/rfam-5.8s-database-id98.fasta,./index/rfam-5.8s-db
 
 
-#-----------------------------------------------------------------------------#
-#-----------------------------------------------------------------------------#
+```
 
+### Download genomes of putative contaminants
+
+```
 
 # download tables of refseq databases from "https://www.ncbi.nlm.nih.gov/genome" and select/filter/search groups of genomes of interest
 cd databases
@@ -90,6 +107,8 @@ wget ftp://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/008/370/165/GCF_008370165.1_ASM8
 # Regiella
 wget ftp://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/143/625/GCF_000143625.1_ASM14362v1/GCF_000143625.1_ASM14362v1_genomic.fna.gz -P endosymbionts/regiella
 # Rickettsia
+
+
 wget ftp://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/003/966/755/GCF_003966755.1_ASM396675v1/GCF_003966755.1_ASM396675v1_genomic.fna.gz -P endosymbionts/rickettsia
 # Sodalis
 wget ftp://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/900/143/145/GCF_900143145.1_SoCistrobi_v1.0/GCF_900143145.1_SoCistrobi_v1.0_genomic.fna.gz -P endosymbionts/sodalis
@@ -1057,3 +1076,4 @@ diff h2.txt h1.txt > only_in_2.txt
 [W::sam_hdr_create] Duplicated sequence 'NC_002128.1'
 [W::sam_hdr_create] Duplicated sequence 'NC_002127.1'
 NC_000913.3
+```
