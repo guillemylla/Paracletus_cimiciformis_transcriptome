@@ -1,12 +1,12 @@
 ---
-title: "GO Enrichment Analysis"
-author:
-- affiliation: Harvard University
-  name: Guillem Ylla
+title: "Paracletus GOEA"
 output:
   html_document:
     df_print: paged
+    toc: true
+    toc_depth: 4
   pdf_document: default
+  html_notebook: default
 ---
 
 
@@ -24,49 +24,50 @@ library(enrichplot)
 library(stringr)
 library(RColorBrewer)
 knitr::opts_chunk$set(fig.width = 10)
-knitr::opts_chunk$set(echo = TRUE)
 knitr::opts_chunk$set(cache = TRUE)
-knitr::opts_chunk$set(warning =  FALSE)
-knitr::opts_chunk$set(message  =  FALSE)
 ```
 
 # Load data
 
 
-## Load the Differentially Expression Analysis results obtained by Miquel.
+## Load Genes 
+
+- All BlastHit from Metazoa, with the P-values and FoldChange from DEA
 
 ```{r message=FALSE, warning=FALSE}
-DEG<-read.csv("Data/DEA_results.csv")
-names(DEG)[names(DEG) == "X"] <-"transcript_id"
-# head(DEG)
-# dim(DEG)
+AllGenes<-read.csv("fullDEGreport.tsv", sep="\t")
+# head(AllGenes)
+dim(AllGenes)
 ```
 
 ## Load the transcriptome annotations
 
 ```{r}
-Raw_Annots<-read.csv("Data/Annotated_Transcriptome_summarisedbyTranscript_V5.tsv", sep="\t")## File toobig for GitHub. Contact me if you need it.
+Raw_Annots<-read.csv("../Annotated_Transcriptome_summarisedbyTranscript_V5.tsv", sep="\t")
 #dim(Raw_Annots)
 #Raw_Annots
 ```
 
-## Join DEG list and Annotatiosn
+## Join Gene list and Annotatiosn
 
 ```{r}
-DEG_Annots<-DEG %>%
+Gene_Annots<-AllGenes %>%
   left_join(., Raw_Annots, by=("transcript_id" ) )
 
-#DEG_Annots
+#Gene_Annots
 ```
 
-### PCA all genes
+## Quality Control
+
 
 ```{r}
-Table_vst<-read.csv("Data/Table_vst.csv",  row.names = 1)
+Table_vst<-read.csv("/home/ysland/Documents/Paracletus_project/RNA_seq_data/Table_vst.csv",  row.names = 1)
 
 Design_matrix<-data.frame(Sample_names=colnames(Table_vst), Biological_condition=sapply(strsplit(colnames(Table_vst),"_rep"), `[`, 1))
 rownames(Design_matrix)<-Design_matrix$Sample_names
 ```
+
+### PCA all genes
 
 ```{r}
 # Do PCA
@@ -89,7 +90,7 @@ ggplot(PCAvalues, aes(x = PC1, y = PC2, colour = samples)) +
 ### PCA with DEA genes only
 
 ```{r}
-List_DEA_genes<-DEG[which(DEG$padj<0.01),"transcript_id"]
+List_DEA_genes<-AllGenes[which(AllGenes$padj<0.01),"transcript_id"]
 #length(List_DEA_genes)
 
 DEA_genes_vst<-Table_vst[which(rownames(Table_vst) %in% List_DEA_genes),]
@@ -121,14 +122,14 @@ ggplot(PCAvalues_DEgenes, aes(x = PC1, y = PC2, colour = samples)) +
 ```{r}
 library(AnnotationForge)
 
-Gene_Table<-data.frame(GID=DEG_Annots$transcript_id,
-                       BlastX=DEG_Annots$sprot_Top_BLASTX_hit,
-                       BlastP=DEG_Annots$sprot_Top_BLASTP_hit,
-                       BlastX_Name=DEG_Annots$BlastX_ProtName,
-                       BlastP_Name=DEG_Annots$BlastP_ProtName,
-                       BlastSppHit=DEG_Annots$SPECIES)
+Gene_Table<-data.frame(GID=Gene_Annots$transcript_id,
+                       BlastX=Gene_Annots$sprot_Top_BLASTX_hit,
+                       BlastP=Gene_Annots$sprot_Top_BLASTP_hit,
+                       BlastX_Name=Gene_Annots$BlastX_ProtName,
+                       BlastP_Name=Gene_Annots$BlastP_ProtName,
+                       BlastSppHit=Gene_Annots$SPECIES)
 
-GoTable<-DEG_Annots %>%
+GoTable<-Gene_Annots %>%
   dplyr::select("transcript_id","PfamBlastGos_UNIQ_clean") %>%
   separate_rows(. ,"PfamBlastGos_UNIQ_clean", sep=";") %>%
   filter(!is.na(PfamBlastGos_UNIQ_clean)) %>%
@@ -136,9 +137,9 @@ GoTable<-DEG_Annots %>%
   dplyr::rename(GID="transcript_id" , GO="PfamBlastGos_UNIQ_clean") %>%
   tibble::add_column(EVIDENCE="IEA") %>%
   as.data.frame()
-
-
-## Too big for GitHub, contact me if you need the package.
+# 
+# 
+# # run in terminal, not here
 # makeOrgPackage(gene_info=Gene_Table, go=GoTable,
 #                       version = "0.1",
 #                      maintainer="Some One <so@someplace.org>",
@@ -153,14 +154,84 @@ GoTable<-DEG_Annots %>%
 # ## then you can call install.packages based on the return value
 ```
 
+# Gene Ontology Enroichment Analysis on DEA genes
+
+```{r  echo=T, message=FALSE, warning=FALSE, comment=FALSE, include=TRUE, results='hide'}
+# install.packages("/home/ysland/Documents/Paracletus_project/RNA_seq_data/org.Pcimiciformis.eg.db", repos=NULL)
+
+library("org.Pcimiciformis.eg.db")
+#columns(org.Pcimiciformis.eg.db)
+#keytypes(org.Pcimiciformis.eg.db)
+# head(keys(org.Pcimiciformis.eg.db,keytype="GID"))
+# head(keys(org.Pcimiciformis.eg.db,keytype="ONTOLOGYALL"))
+
+# select(org.Pcimiciformis.eg.db,
+#        keys=c("TRINITY_DN97_c0_g2_i1","TRINITY_DN3229_c0_g2_i3","TRINITY_DN73_c0_g1_i20","TRINITY_DN2034_c1_g1_i4", "TRINITY_DN2529_c1_g2_i1" ),
+#        columns=c("GID","GOALL","ONTOLOGYALL") )
+   
+
+DEA_genes<-AllGenes[which(AllGenes$padj<0.01),]
+ dim(DEA_genes)
+# table(DEA_genes$log2FoldChange>0)
+
+GO_DEA_BP <- enrichGO(gene          = DEA_genes$transcript_id,
+                OrgDb         = org.Pcimiciformis.eg.db,
+                keyType = "GID",
+                ont           = "BP",
+                pAdjustMethod = "BH",
+                pvalueCutoff  = 0.05,
+                qvalueCutoff  = 0.05,
+                readable      = FALSE)
+
+GO_DEA_MF <- enrichGO(gene          = DEA_genes$transcript_id,
+                OrgDb         = org.Pcimiciformis.eg.db,
+                keyType = "GID",
+                ont           = "MF",
+                pAdjustMethod = "BH",
+                pvalueCutoff  = 0.05,
+                qvalueCutoff  = 0.05,
+                readable      = FALSE)
+
+GO_DEA_CC <- enrichGO(gene          = DEA_genes$transcript_id,
+                OrgDb         = org.Pcimiciformis.eg.db,
+                keyType = "GID",
+                ont           = "CC",
+                pAdjustMethod = "BH",
+                pvalueCutoff  = 0.05,
+                qvalueCutoff  = 0.05,
+                readable      = FALSE)
+
+```
+
+
+## GO terms DE genes - Biological Process
+
+```{r}
+dotplot(GO_DEA_BP, showCategory=50) + ggtitle("BP - dotplot for DE genes")
+```
+
+## GO terms DE genes - Molecular Function
+
+```{r, fig.width=20, fig.height=10}
+dotplot(GO_DEA_MF, showCategory=50) + ggtitle("MF - dotplot for DE genes")
+```
+## GO terms DE genes - Cellular Component
+
+```{r}
+dotplot(GO_DEA_CC, showCategory=50) + ggtitle("CC - dotplot for DE genes")
+```
+
+
 
 
 # Gene Ontology Enroichment Analysis on DE genes by Morf
 
 ```{r}
+# install.packages("/home/ysland/Documents/Paracletus_project/RNA_seq_data/org.Pcimiciformis.eg.db", repos=NULL)
+
 library("org.Pcimiciformis.eg.db")
 
-table(DEG[which(DEG$padj<0.01),]$log2FoldChange>0)
+ table(AllGenes[which(AllGenes$padj<0.01),]$log2FoldChange>0)
 ```
 
 
@@ -172,8 +243,8 @@ library(org.Pcimiciformis.eg.db)
 
 
 GENESList<-list(
-  DEA_genes_Up_FM=DEG[which(DEG$padj<0.01 & DEG$log2FoldChange>0),"transcript_id"],
-  DEA_genes_Up_RM=DEG[which(DEG$padj<0.01 & DEG$log2FoldChange<0),"transcript_id"]
+  DEA_genes_Up_FM=AllGenes[which(AllGenes$padj<0.01 & AllGenes$log2FoldChange>0),"transcript_id"],
+  DEA_genes_Up_RM=AllGenes[which(AllGenes$padj<0.01 & AllGenes$log2FoldChange<0),"transcript_id"]
 )
 
 
@@ -251,7 +322,7 @@ dotplot(DE_byMorf_BP_Simplified_level , showCategory=50, includeAll=TRUE)+ggtitl
 
 ```
 
-##### Example: trehalose
+
 
 ```{r}
 GO0005991<-DE_byMorf_BP_Simplified_level@compareClusterResult[which(DE_byMorf_BP_Simplified_level@compareClusterResult$Description=="trehalose metabolic process"),]
@@ -317,12 +388,12 @@ dotplot(DE_byMorf_CC , showCategory=50, includeAll=TRUE)+ggtitle("Significant GO
 
 ## DEA p-value <0.05
 ```{r}
- table(DEG[which(DEG$padj<0.05),]$log2FoldChange>0)
+ table(AllGenes[which(AllGenes$padj<0.05),]$log2FoldChange>0)
 
 
 GENESList_p005<-list(
-  DEA_genes_Up_FM=DEG[which(DEG$padj<0.05 & DEG$log2FoldChange>0),"transcript_id"],
-  DEA_genes_Up_RM=DEG[which(DEG$padj<0.05 & DEG$log2FoldChange<0),"transcript_id"]
+  DEA_genes_Up_FM=AllGenes[which(AllGenes$padj<0.05 & AllGenes$log2FoldChange>0),"transcript_id"],
+  DEA_genes_Up_RM=AllGenes[which(AllGenes$padj<0.05 & AllGenes$log2FoldChange<0),"transcript_id"]
 )
 ```
 
@@ -437,6 +508,121 @@ GO0042302_list
 dotplot(DE_byMorf_CC_p005 , showCategory=100, includeAll=TRUE)+ggtitle("Significant GO terms enrich in DE genes (p<0.05)  -- CC ")
 
 ```
+
+
+<!-- # Gene Ontology Enroichment Analysis with TOP GO -->
+
+<!-- ```{r  echo=T, message=FALSE, warning=FALSE, comment=FALSE, include=TRUE, results='hide'} -->
+<!-- # install.packages("/home/ysland/Documents/Paracletus_project/RNA_seq_data/org.Pcimiciformis.eg.db", repos=NULL) -->
+<!-- library(topGO) -->
+
+
+
+<!-- # Gotable_dict<-GoTable %>%  -->
+<!-- #   dplyr::select(GID, GO) %>%  -->
+<!-- #   group_by(GID) %>%  -->
+<!-- #     summarise(combo_1 = paste(GO, collapse = ",") ) -->
+<!-- #write.table(as.data.frame(Gotable_dict),"Gotable_dict.txt", sep="\t", row.names=F, col.names	=FALSE, quote=F) -->
+
+
+<!-- Gene_List<-GoTable$GID -->
+<!-- length(Gene_List) -->
+
+<!-- DEA_genes_Up_FM<-DEA_genes[DEA_genes$log2FoldChange>0,  "transcript_id"] -->
+<!-- #DEA_genes_Up_FM=DEG[which(DEG$padj<0.05 & DEG$log2FoldChange>0),"transcript_id"], -->
+
+<!-- length(DEA_genes_Up_FM) -->
+
+
+<!-- geneID2GO <- readMappings("Gotable_dict.txt") -->
+
+
+<!-- Gene_ListUp=factor(as.integer(Gene_List %in%  DEA_genes_Up_FM))  ## being or not in the selected ones as Factor -->
+<!-- names(Gene_ListUp)= Gene_List -->
+<!-- table(Gene_ListUp) -->
+
+
+<!-- TopGOdataBP_Up <- new("topGOdata", -->
+<!--                     description = "TopGo BP", ontology = "BP", -->
+<!--                     allGenes =Gene_ListUp,  -->
+<!--                     nodeSize = 1, -->
+<!--                     annot = annFUN.gene2GO, -->
+<!--                     gene2GO =geneID2GO) -->
+
+
+<!-- TopGOdataBP_Up_weight01_fisher_BP=runTest(TopGOdataBP_Up, algorithm='weight01', statistic='fisher')  -->
+
+<!-- allGO=usedGO(TopGOdataBP_Up) -->
+
+<!-- res_TopGOdataBP_Up=GenTable(TopGOdataBP_Up, weightFisher=TopGOdataBP_Up_weight01_fisher_BP, orderBy='weightFisher', topNodes=length(allGO)) -->
+<!-- res_TopGOdataBP_Up$pvalue<-topGO::score(TopGOdataBP_Up_weight01_fisher_BP)[res_TopGOdataBP_Up$GO.ID] -->
+
+
+<!-- head(res_TopGOdataBP_Up) -->
+<!-- ``` -->
+
+
+<!-- ```{r} -->
+<!-- Gene_List<-GoTable$GID -->
+<!-- length(Gene_List) -->
+
+
+<!-- #  DEA_genes_Up_RM=DEG[which(DEG$padj<0.05 & DEG$log2FoldChange<0),"transcript_id"] -->
+
+<!-- DEA_genes_Up_RM<-DEA_genes[DEA_genes$log2FoldChange<0, "transcript_id" ] -->
+<!-- length(DEA_genes_Up_RM) -->
+
+
+<!-- Gene_ListDown=factor(as.integer(Gene_List %in%  DEA_genes_Up_RM))  ## being or not in the selected ones as Factor -->
+<!-- names(Gene_ListDown)= Gene_List -->
+<!-- table(Gene_ListDown) -->
+
+
+<!-- TopGOdataBP_Down<- new("topGOdata", -->
+<!--                     description = "TopGo BP Down", ontology = "BP", -->
+<!--                     allGenes =Gene_ListDown,  -->
+<!--                     nodeSize = 1, -->
+<!--                     annot = annFUN.gene2GO, -->
+<!--                     gene2GO =geneID2GO) -->
+
+
+<!-- TopGOdataBP_Down_weight01_fisher_BP=runTest(TopGOdataBP_Down, algorithm='weight01', statistic='fisher')  -->
+
+<!-- allGO=usedGO(TopGOdataBP_Down) -->
+
+<!-- res_TopGOdataBP_Down=GenTable(TopGOdataBP_Down, weightFisher=TopGOdataBP_Down_weight01_fisher_BP, orderBy='weightFisher', topNodes=length(allGO)) -->
+<!-- res_TopGOdataBP_Down$pvalue<-topGO::score(TopGOdataBP_Down_weight01_fisher_BP)[res_TopGOdataBP_Down$GO.ID] -->
+<!-- head(res_TopGOdataBP_Down) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- All_Goes<-rbind(cbind(res_TopGOdataBP_Up, Class="Up_FM"), -->
+<!--                 cbind(res_TopGOdataBP_Down, Class="Up_RM")) -->
+
+<!-- Significants<-All_Goes %>%filter(pvalue<0.05) %>% dplyr::select(GO.ID) %>% distinct(GO.ID) -->
+
+<!-- All_Goes_Factors<-All_Goes%>%  -->
+<!--     filter(GO.ID %in% Significants$GO.ID) %>%  -->
+<!--   mutate(Term=fct_reorder2(Term, Class,pvalue, .desc = TRUE)) -->
+
+
+<!-- Point_plot_gradient<-ggplot(All_Goes_Factors, aes(Term, Class  )) +  -->
+<!--   geom_point(aes(fill=pvalue,  size = Significant/Annotated*100),shape = 21, stroke = 0.1)+ -->
+<!--   #geom_text(aes(label=round(pvalue,3)),hjust=0, vjust=0)+ -->
+<!--   coord_flip()+ -->
+<!--   scale_fill_gradient2(high = "#d11141", low = "#00b159", mid="black",midpoint =0.45 ,   breaks=c(1,0.05,0.01) ,trans="sqrt")+ -->
+<!--   theme_bw()+ -->
+<!--   labs(y="",x="")+ -->
+<!--      theme(title=element_text(size=10, hjust=0.5), -->
+<!--         axis.title=element_text(size=10), -->
+<!--         axis.text = element_text(size=10)) -->
+
+<!-- Point_plot_gradient -->
+
+<!-- #ggsave("Point_plot_gradient.png",Point_plot_gradient, width = 10, height =15, units ="in",dpi = 300, bg="transparent") -->
+
+<!-- ``` -->
+
 
 
 # Session info
