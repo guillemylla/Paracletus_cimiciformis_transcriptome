@@ -54,7 +54,7 @@ cd trinityrnaseq-v2.9.1
 # if required cmake → sudo apt install cmake
 make
 make plugins
-export TRINITY_HOME=/home/quelo/projects/paracletus/user_installed_software/trinityrnaseq-v2.9.1/
+export TRINITY_HOME=~/paracletus/user_installed_software/trinityrnaseq-v2.9.1/
 echo export PATH=\$PATH:`pwd`\ >> ~/.bashrc && source ~/.bashrc
 
 # install BUSCO
@@ -64,8 +64,8 @@ cd busco/
 # busco code and config file
 python3 setup.py install --user
 # configure config.ini file for BUSCO
-python3 /home/quelo/projects/paracletus/user_installed_software/busco/scripts/busco_configurator.py config/config.ini config/myconfig.ini
-export BUSCO_CONFIG_FILE="/home/quelo/projects/paracletus/user_installed_software/busco/config/myconfig.ini"
+python3 ~/paracletus/user_installed_software/busco/scripts/busco_configurator.py config/config.ini config/myconfig.ini
+export BUSCO_CONFIG_FILE="~/paracletus/user_installed_software/busco/config/myconfig.ini"
 
 
 # SortMeRNA
@@ -73,7 +73,7 @@ cd ~/projects/paracletus/user_installed_software/
 wget https://github.com/biocore/sortmerna/releases/download/v4.2.0/sortmerna-4.2.0-Linux.sh
 mkdir sortmerna
 bash sortmerna-4.2.0-Linux.sh --skip-license --prefix=sortmerna
-export PATH=$PATH:/home/quelo/projects/paracletus/user_installed_software/sortmerna/bin:$PATH
+export PATH=$PATH:~/paracletus/user_installed_software/sortmerna/bin:$PATH
 
 
 wget http://bioinfo.lifl.fr/RNA/sortmerna/code/sortmerna-2.1-linux-64-multithread.tar.gz
@@ -169,16 +169,19 @@ cat *.fna > ../virus.fna
 cd ..
 
 # combine all "contamination" databases in one, including human, C. elegans, plants, S. cerevisiae, E.coli and viruses.
-# moved all databases to /home/quelo/projects/paracletus/cleaned_trimmed_reads/filtered_reads/databases/contamination and concatenate them into contamination_all.fna
+# moved all databases to ~/paracletus/cleaned_trimmed_reads/filtered_reads/databases/contamination and concatenate them into contamination_all.fna
 
 
-#---------------------------------------------------------------------------------------------------------------------------#
-# MAPPING CONTAMINATION
-#---------------------------------------------------------------------------------------------------------------------------#
-# map reads to each of the databases with bowtie2
+```
+
+### Map reads against putative contaminants
+
+- Using Bowtie2
+
+```
 # combined databases "contamination.fna", "aphidsMT.fna" and "endosymbionts.fna" are all in databases folder
 # for now, only use contamination.fna
-cd /home/quelo/projects/paracletus/cleaned_trimmed_reads/filtered_reads
+cd ~/paracletus/cleaned_trimmed_reads/filtered_reads
 mkdir mapping
 mkdir mapping/contamination
 # move databases to correspondig mapping folder
@@ -187,12 +190,12 @@ mkdir mapping/contamination
 #cd mapping/
 #bowtie2-build contamination/contamination.fna contamination/contamination
 # indexing of contamination.fna took >36 h. Index each contamination separated.
-cd /home/quelo/projects/paracletus/cleaned_trimmed_reads/filtered_reads/databases/contamination
+cd ~/paracletus/cleaned_trimmed_reads/filtered_reads/databases/contamination
 cat GCF_000005845.2_ASM584v2_genomic.fna GCF_000008865.2_ASM886v2_genomic.fna  > E.coli_genomic.fna
 # index with bowtie2-build
-cd /home/quelo/projects/paracletus/cleaned_trimmed_reads/filtered_reads/mapping/contamination
+cd ~/paracletus/cleaned_trimmed_reads/filtered_reads/mapping/contamination
 mkdir triticum arabidopsis ecoli human worm virus yeast
-cd /home/quelo/projects/paracletus/cleaned_trimmed_reads/filtered_reads/
+cd ~/paracletus/cleaned_trimmed_reads/filtered_reads/
 bowtie2-build databases/contamination/GCA_002220415.3_Triticum_4.0_genomic.fna mapping/contamination/triticum/Triticum
 bowtie2-build databases/contamination/GCF_000001735.4_TAIR10.1_genomic.fna mapping/contamination/arabidopsis/arabidopsis
 bowtie2-build databases/contamination/E.coli_genomic.fna mapping/contamination/ecoli/ecoli
@@ -286,7 +289,7 @@ bedtools bamtofastq -i contamination/virus/SAMPLE_bothEndsUnmapped_sorted.bam -f
 ### FURTHER REMOVE CONTAMINATION WITH RELAXED BOWTIE2 PARAMETERS ###
 
 # concatenate all "contamination" databases into a single file (74040 fasta entries)
-cd /home/quelo/projects/paracletus/cleaned_trimmed_reads/filtered_reads/mapping/contamination
+cd ~/paracletus/cleaned_trimmed_reads/filtered_reads/mapping/contamination
 
 find -name '*.fna' -exec cat {} \; > contamination.fna
 # index database
@@ -318,21 +321,20 @@ bedtools bamtofastq -i endosymbionts/SAMPLE_bothEndsUnmapped_sorted.bam -fq ../r
 
 # MITOCHONDRIAL reads were not removed
 
+```
 
+### Remove rRNA reads
 
+- SortMeRNA to 
 
-
-#---------------------------#
-# SortMeRNA to remove rRNA
-#---------------------------#
-# remove rRNA from filtered contaminations reads. Use all databases
-cd /home/quelo/projects/paracletus/cleaned_trimmed_reads/filtered_reads/reads/sortmerna
+```
+cd ~/paracletus/cleaned_trimmed_reads/filtered_reads/reads/sortmerna
 # use script to merge R1 and R2 fastq files
 merge-paired-reads.sh ../decont9_R1.fastq ../decont9_R2.fastq decont.merged.fastq
 # add environmental variables as paths to database and indexes
 export SORTMERNA_DB=$HOME/projects/paracletus/user_installed_software/sortmerna-2.1b/rRNA_databases
 export SORTMERNA_INDEX=$HOME/projects/paracletus/user_installed_software/sortmerna-2.1b/index
-/home/quelo/projects/paracletus/cleaned_trimmed_reads/reads
+~/paracletus/cleaned_trimmed_reads/reads
 # filter rRNA reads (with 20GB RAM). Only removes paired reads that have both aligned to rRNA
 sortmerna --ref $SORTMERNA_DB/rfam-5s-database-id98.fasta,$SORTMERNA_INDEX/rfam-5s-db:\
 $SORTMERNA_DB/rfam-5.8s-database-id98.fasta,$SORTMERNA_INDEX/rfam-5.8s-db:\
@@ -350,14 +352,14 @@ unmerge-paired-reads.sh decont.norRNA.fastq decont.norRNA.R1.fastq decont.norRNA
 echo $(cat decont.norRNA.R1.fastq|wc -l)/4|bc
 echo $(cat decont.norRNA.R2.fastq|wc -l)/4|bc
 
+```
 
 
-#---------------------------------------------------------------------------------------------------------------------------#
-# ASSEMBLY 3: removed contamination + relaxed decontamination + remove endosymbionts + removed rRNA (kept mirochondrial)
-#---------------------------------------------------------------------------------------------------------------------------#
+## Transcriptome Assembly
 
+```
 # running assembly
-cd /home/quelo/projects/paracletus/cleaned_trimmed_reads/filtered_reads
+cd ~/paracletus/cleaned_trimmed_reads/filtered_reads
 mkdir assemblies/trinity3
 Trinity --seqType fq --max_memory 60G --SS_lib_type RF --min_kmer_cov 2 --left reads/sortmerna/decont.norRNA.R1.fastq --right reads/sortmerna/decont.norRNA.R2.fastq --CPU 15 --output assemblies/trinity3/ 1>assemblies/trinity3/Trinity.log 2>assemblies/trinity3/Trinity.err
 
@@ -365,8 +367,8 @@ Trinity --seqType fq --max_memory 60G --SS_lib_type RF --min_kmer_cov 2 --left r
 TrinityStats.pl assemblies/trinity3/Trinity.fasta > assemblies/trinity3/Stats.trinity3.txt
 
 # use BUSCO to assess completeness of the assembly against arthropoda
-#export BUSCO_CONFIG_FILE="/home/quelo/projects/paracletus/user_installed_software/busco/config/myconfig.ini"
-cd /home/quelo/projects/paracletus/cleaned_trimmed_reads/filtered_reads/assemblies/trinity3/
+#export BUSCO_CONFIG_FILE="~/paracletus/user_installed_software/busco/config/myconfig.ini"
+cd ~/paracletus/cleaned_trimmed_reads/filtered_reads/assemblies/trinity3/
 mkdir BUSCO
 cd BUSCO
 busco -c 15 -m transcriptome -i ../Trinity.fasta -o arthr -l arthropoda_odb10 1>busco_arth.log 2>busco_arth.err
@@ -383,16 +385,14 @@ bowtie2 --local --no-unal -x Trinity.fasta -p 15 \
       | samtools view -b -@ 15 | samtools sort -@ 15 -o bowtie2.bam
 
 
+```
 
+## Quantification
 
+- With Bowtie2 + RSEM
 
-
-
-#######################################################
-# Quantification of transcripts with bowtie2 and RSEM #
-#######################################################
-
-cd /home/quelo/projects/paracletus/cleaned_trimmed_reads/filtered_reads/assemblies/trinity3/
+```
+cd ~/paracletus/cleaned_trimmed_reads/filtered_reads/assemblies/trinity3/
 mkdir quantification
 cd quantification
 
@@ -406,7 +406,7 @@ F_morph	F_morph_rep2	../../../../reads/8B_S1_.R1_pairedout.fq	../../../../reads/
 F_morph	F_morph_rep3	../../../../reads/10B_S4_.R1_pairedout.fq	../../../../reads/10B_S4_.R2_pairedout.fq
 EOF
 
-#export READS=/home/quelo/projects/paracletus/cleaned_trimmed_reads/reads
+#export READS=~/paracletus/cleaned_trimmed_reads/reads
 
 
 # generate count matrices with RSEM. First align the original (the cleaned and filtered by quality) rna-seq reads back against the Trinity transcripts, then run RSEM to estimate the number of rna-seq fragments that map to each contig
@@ -453,13 +453,14 @@ plot(data, xlim=c(-100,0), ylim=c(0,100000), t='b')
 data2 = read.table("counting/trans_matrix.TPM.not_cross_norm.counts_by_min_TPM", header=T)
 plot(data2, xlim=c(-100,0), ylim=c(0,100000), t='b')
 q()
+```
 
 
-########################################################
-### TRANSCRIPTS FILTERING BASED ON EXPRESSION VALUES ###
-########################################################
+## Filter low expressed transcripts
 
-/home/quelo/projects/paracletus/cleaned_trimmed_reads/filtered_reads/assemblies/trinity3/quantification
+
+```
+~/paracletus/cleaned_trimmed_reads/filtered_reads/assemblies/trinity3/quantification
 # attempt to reduce redundancy in the transcriptome by retaining the most expressed isoform only
 mkdir ../reduced_asssemblies/gene_assembly
 filter_low_expr_transcripts.pl \
@@ -531,55 +532,13 @@ filter_low_expr_transcripts.pl \
 
 # Retained 79025 / 472478 = 16.73% of total transcripts. NOTE! BUSCOinsecta down to 90.4%
 #---------------------------------------------------------------------------------------------#
+```
 
+##  Differential Expression Analysis
 
+- DEseq2
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-###############################################
-# DE with Trinity scripts using DESeq2 method #
-###############################################
-
-
+```
 #DEseq2 is used to identify DE transcripts
 run_DE_analysis.pl \
       --matrix Trinity5.rsem.isoform.counts.matrix \
@@ -630,450 +589,4 @@ define_clusters_by_cutting_tree.pl \
        --Ptree 60 -R diffExpr.P1e-3_C2.matrix.RData
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#---------------------------------------------------------------------------------------------------------------------------#
-# ASSEMBLY 2: removed contamination and rRNA
-#---------------------------------------------------------------------------------------------------------------------------#
-
-#---------------------------#
-# SortMeRNA to remove rRNA
-#---------------------------#
-# remove rRNA from filtered contaminations reads. Use all databases (?)
-cd /home/quelo/projects/paracletus/cleaned_trimmed_reads/filtered_reads/reads
-mkdir sortmerna
-cd sortmerna
-# use script to merge R1 and R2 fastq files
-merge-paired-reads.sh ../decont7_R1.fastq ../decont7_R2.fastq decont.merged.fastq
-# add environmental variables as paths to database and indexes
-export SORTMERNA_DB=$HOME/projects/paracletus/user_installed_software/sortmerna-2.1b/rRNA_databases
-export SORTMERNA_INDEX=$HOME/projects/paracletus/user_installed_software/sortmerna-2.1b/index
-
-# filter rRNA reads (with 20GB RAM). Only removes paired reads that have both aligned to rRNA
-sortmerna --ref $SORTMERNA_DB/rfam-5s-database-id98.fasta,$SORTMERNA_INDEX/rfam-5s-db:\
-$SORTMERNA_DB/rfam-5.8s-database-id98.fasta,$SORTMERNA_INDEX/rfam-5.8s-db:\
-$SORTMERNA_DB/silva-arc-16s-id95.fasta,$SORTMERNA_INDEX/silva-arc-16s-db:\
-$SORTMERNA_DB/silva-arc-23s-id98.fasta,$SORTMERNA_INDEX/silva-arc-23s-db:\
-$SORTMERNA_DB/silva-bac-16s-id90.fasta,$SORTMERNA_INDEX/silva-bac-16s-db:\
-$SORTMERNA_DB/silva-bac-23s-id98.fasta,$SORTMERNA_INDEX/silva-bac-23s-db:\
-$SORTMERNA_DB/silva-euk-18s-id95.fasta,$SORTMERNA_INDEX/silva-euk-18s-db:\
-$SORTMERNA_DB/silva-euk-28s-id98.fasta,$SORTMERNA_INDEX/silva-euk-28s \
---reads decont.merged.fastq -a 14 -m 20480 --paired_out --sam --num_alignments 1 --fastx --aligned decont.rRNA --other decont.norRNA --log -v
-
-# split output fastq into R1 and R2
-unmerge-paired-reads.sh decont.norRNA.fastq decont.norRNA.R1.fastq decont.norRNA.R2.fastq
-
-echo $(cat decont.norRNA.R1.fastq|wc -l)/4|bc
-echo $(cat decont.norRNA.R2.fastq|wc -l)/4|bc
-
-
-# running assembly with decontaminated and rRNA removed
-cd /home/quelo/projects/paracletus/cleaned_trimmed_reads/filtered_reads
-mkdir assemblies/trinity_decont_norRNA
-Trinity --seqType fq --max_memory 60G --SS_lib_type RF --min_kmer_cov 2 --left reads/sortmerna/decont.norRNA.R1.fastq --right reads/sortmerna/decont.norRNA.R2.fastq --CPU 14 --output assemblies/trinity_decont_norRNA/ 1>assemblies/trinity_decont_norRNA/Trinity.log 2>assemblies/trinity_decont_norRNA/Trinity.err
-
-# get Trinity basic statistics
-TrinityStats.pl Trinity.fasta > Stats.decont.norRNA.txt
-
-# use BUSCO to assess completeness of the assembly against arthropoda
-#export BUSCO_CONFIG_FILE="/home/quelo/projects/paracletus/user_installed_software/busco/config/myconfig.ini"
-cd /home/quelo/projects/paracletus/cleaned_trimmed_reads/filtered_reads/assemblies/trinity_decont_norRNA
-mkdir BUSCO
-cd BUSCO
-busco -c 14 -m transcriptome -i ../Trinity.fasta -o arthr -l arthropoda_odb10 1>busco_arth.log 2>busco_arth.err
-busco -c 14 -m transcriptome -i ../Trinity.fasta -o insect -l insecta_odb10 1>busco_insect.log 2>busco_insect.err
-busco -c 14 -m transcriptome -i ../Trinity.fasta -o bact -l bacteria_odb10 1>busco_bact.log 2>busco_bact.err
-
-# cd-hit remove redundancy
-#cd /home/quelo/projects/paracletus/cleaned_trimmed_reads/filtered_reads/assembly/trinity_decont_norRNA
-#mkdir cdhit cdhit/0.95
-#cd cdhit/0.95
-#cd-hit-est -i ../../Trinity.fasta -c 0.95 -o cdhit0.95.fasta -c 0.95 -n 8 -p 1 -g 1 -M 81920 -T 14 -d 40 1>cd-hit-est_0.95.log 2>cd-hit-est_0.95.err
-# reduced the assembly to 411k contigs. Still too much!
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#find . -maxdepth 1 -type d \( -path ./endosymbionts -o -path ./virus -o -path ./refseq_reference_tables -o -path ./mitochondrion \) -prune -o -print | find . -name '*.fna' -exec cat {} \; > contamination2.fna
-#cat contamination2.fna virus.fna > contamination.fna
-
-
-
-#---------------------------------------------------------------------------------------------------------------------------#
-# MAPPING
-# map reads to each of the databases with bowtie2
-# combined databases "contamination.fna", "aphidsMT.fna" and "endosymbionts.fna" are all in databases folder
-# first, the mitochondrial reads will be set apart. Then, the endosymbionts will also be set apart. Finally, the reads mapping to contamination will be discarded.
-cd /home/quelo/projects/paracletus/cleaned_trimmed_reads/filtered_reads
-mkdir mapping
-mkdir mapping/contamination mapping/endosymbionts mapping/mitochondrion
-# move databases to correspondig mapping folder
-mv databases/endosymbionts.fna mapping/endosymbionts/
-mv databases/contamination.fna mapping/contamination/
-mv databases/aphidsMT.fna mapping/mitochondrion/
-#index each database
-cd mapping/
-bowtie2-build contamination/contamination.fna contamination/contamination
-bowtie2-build endosymbionts/endosymbionts.fna endosymbionts/endosymbionts
-bowtie2-build mitochondrion/aphidsMT.fna mitochondrion/aphidsMT
-
-# map with bowtie2 (adapted from http://www.metagenomics.wiki/tools/short-read/remove-host-sequences)
-
-# bowtie2 mapping against mitochondrial sequences database, keep both mapped and unmapped reads (paired-end reads)
-bowtie2 -x mitochondrion/aphidsMT -p 14 -q --rf -1 ../../R1_pairedout.fastq -2 ../../R2_pairedout.fastq 2>mitochondrion/align_stats.txt | samtools view -@14 -bS -> mitochondrion/MT_mapped_and_unmapped.bam 
-# filter required unmapped reads
-# SAMtools SAM-flag filter: get unmapped pairs (both ends unmapped)
-samtools view -b -f 12 -F 256 MT_mapped_and_unmapped.bam > removed_MT_bothEndsUnmapped.bam
-# SAMtools SAM-flag filter: get mapped pairs (both ends mapped)
-samtools view -b -f 2 -F 256 MT_mapped_and_unmapped.bam > MT_bothEndsUnmapped.bam
-# split paired-end reads into separated fastq files .._r1 .._r2
-# sort bam file by read name (-n) to have paired reads next to each other as required by bedtools
-samtools sort -n removed_MT_bothEndsUnmapped.bam removed_MT_bothEndsUnmapped_sorted
-bedtools bamtofastq -i removed_MT_bothEndsUnmapped_sorted.bam -fq removed_MT_R1.fastq -fq2 removed_MT_R2.fastq
-
-
-# bowtie2 mapping against endosymbionts sequences database, keep both mapped and unmapped reads (paired-end reads)
-bowtie2 -x endosymbionts/endosymbionts -p 14 -q --rf -1 ../../R1_pairedout.fastq -2 ../../R2_pairedout.fastq 2>endosymbionts/align_stats.txt | samtools view -@14 -bS -> endosymbionts/endosym_mapped_and_unmapped.bam 
-# filter required unmapped reads
-# SAMtools SAM-flag filter: get unmapped pairs (both ends unmapped)
-samtools view -b -f 12 -F 256 virus_mapped_and_unmapped.bam > notvirus_bothEndsUnmapped.bam
-# split paired-end reads into separated fastq files .._r1 .._r2
-# sort bam file by read name (-n) to have paired reads next to each other as required by bedtools
-samtools sort -n notvirus_bothEndsUnmapped.bam notvirus_bothEndsUnmapped_sorted
-bedtools bamtofastq -i notvirus_bothEndsUnmapped_sorted.bam -fq virus_removed_r1.fastq -fq2 virus_removed_r2.fastq
-
-# map with bowtie2 (adapted from http://www.metagenomics.wiki/tools/short-read/remove-host-sequences)
-# bowtie2 mapping against contamination sequences database, keep both mapped and unmapped reads (paired-end reads)
-cd /projects/paracletus/cleaned_trimmed_reads/filtered_reads/mapping/
-bowtie2 -x contamination/contamination -p 14 -q --rf -1 ../../R1_pairedout.fastq -2 ../../R2_pairedout.fastq 2>contamination/align_stats.txt | samtools view -@14 -bS -> contamination/contamination_mapped_and_unmapped.bam 
-# filter required unmapped reads
-# SAMtools SAM-flag filter: get unmapped pairs (both ends unmapped)
-samtools view -b -f 12 -F 256 contamination/contamination_mapped_and_unmapped.bam > contamination/SAMPLE_bothEndsUnmapped.bam
-# split paired-end reads into separated fastq files .._r1 .._r2
-# sort bam file by read name (-n) to have paired reads next to each other as required by bedtools
-samtools sort -n contamination/SAMPLE_bothEndsUnmapped.bam contamination/SAMPLE_bothEndsUnmapped_sorted
-bedtools bamtofastq -i contamination/SAMPLE_bothEndsUnmapped_sorted.bam -fq ../filtered_reads/cont_removed_R1.fastq -fq2 ../filtered_reads/cont_removed_R2.fastq
-
-# running assembly on reads with filtered out contamination (not endosymbionts, nor mitochondrial)
-cd /home/quelo/projects/paracletus/cleaned_trimmed_reads/filtered_reads
-mkdir assemblies assemblies/Trinity_removed_cont/
-Trinity --seqType fq --max_memory 60G --SS_lib_type RF --min_kmer_cov 2 --left reads/cont_removed_R1.fastq --right reads/cont_removed_R2.fastq --CPU 14 --output assemblies/Trinity_removed_cont/ 1>assemblies/Trinity_removed_cont/Trinity.log 2>assemblies/Trinity_removed_cont/Trinity.err
-
-# get Trinity basic statistics
-cd /home/quelo/projects/paracletus/cleaned_trimmed_reads/filtered_reads/assembly/Trinity_removed_cont
-mkdir TrinityStats
-cd TrinityStats
-TrinityStats.pl ../Trinity.fasta > Stats.txt
-
-
-# use BUSCO to assess completeness of the assembly against arthropoda
-cd /home/quelo/projects/paracletus/cleaned_trimmed_reads/filtered_reads/assemblies/Trinity_removed_cont
-mkdir BUSCO
-cd BUSCO
-busco -c 14 -m transcriptome -i ../Trinity.fasta -o arthr -l arthropoda_odb10 1>busco_arth.log 2>busco_arth.err
-busco -c 14 -m transcriptome -i ../Trinity.fasta -o bact -l bacteria_odb10 1>busco_bact.log 2>busco_bact.err
-busco -c 14 -m transcriptome -i ../Trinity.fasta -o insect -l insecta_odb10 1>busco_insect.log 2>busco_insect.err
-
-
-
-
-
-# remove rRNA from filtered contaminations reads. Use all databases (?)
-cd /home/quelo/projects/paracletus/cleaned_trimmed_reads/filtered_reads/reads
-mkdir sortmerna
-cd sortmerna
-# use script to merge R1 and R2 fastq files
-merge-paired-reads.sh ../cont_removed_R1.fastq ../cont_removed_R2.fastq cont_removed_merged_reads.fastq
-# add environmental variables as paths to database and indexes
-export SORTMERNA_DB=$HOME/projects/paracletus/user_installed_software/sortmerna-2.1b/rRNA_databases
-export SORTMERNA_INDEX=$HOME/projects/paracletus/user_installed_software/sortmerna-2.1b/index
-
-# filter rRNA reads (with 20GB RAM)
-#sortmerna --ref /home/quelo/projects/paracletus/user_installed_software/sortmerna-2.1b/rRNA_databases/silva-bac-16s-id90.fasta,/home/quelo/projects/paracletus/user_installed_software/sortmerna-2.1b/index/silva-bac-16s-db:\/home/quelo/projects/paracletus/user_installed_software/sortmerna-2.1b/rRNA_databases/silva-bac-23s-id98.fasta,/home/quelo/projects/paracletus/user_installed_software/sortmerna-2.1b/index/silva-bac-23s-db:\/home/quelo/projects/paracletus/user_installed_software/sortmerna-2.1b/rRNA_databases/silva-arc-16s-id95.fasta,/home/quelo/projects/paracletus/user_installed_software/sortmerna-2.1b/index/silva-arc-16s-db:\/home/quelo/projects/paracletus/user_installed_software/sortmerna-2.1b/rRNA_databases/silva-arc-23s-id98.fasta,/home/quelo/projects/paracletus/user_installed_software/sortmerna-2.1b/index/silva-arc-23s-db:\/home/quelo/projects/paracletus/user_installed_software/sortmerna-2.1b/rRNA_databases/silva-euk-18s-id95.fasta,/home/quelo/projects/paracletus/user_installed_software/sortmerna-2.1b/index/silva-euk-18s-db:\/home/quelo/projects/paracletus/user_installed_software/sortmerna-2.1b/rRNA_databases/silva-euk-28s-id98.fasta,/home/quelo/projects/paracletus/user_installed_software/sortmerna-2.1b/index/silva-euk-28s:\/home/quelo/projects/paracletus/user_installed_software/sortmerna-2.1b/rRNA_databases/rfam-5s-database-id98.fasta,/home/quelo/projects/paracletus/user_installed_software/sortmerna-2.1b/index/rfam-5s-db:\/home/quelo/projects/paracletus/user_installed_software/sortmerna-2.1b/rRNA_databases/rfam-5.8s-database-id98.fasta,/home/quelo/projects/paracletus/user_installed_software/sortmerna-2.1b/index/rfam-5.8s-db\ --reads cont_removed_merged_reads.fastq -m 20480 --paired_out --sam --num_alignments 1 --fastx --aligned cont_removed_rRNA --other cont_removed_non_rRNA --log -v
-
-
-
-
-
-
-
-sortmerna --ref /home/quelo/projects/paracletus/user_installed_software/sortmerna-2.1b/rRNA_databases/silva-euk-18s-id95.fasta,/home/quelo/projects/paracletus/user_installed_software/sortmerna-2.1b/index/silva-euk-18s-db --reads cont_removed_merged_reads.fastq -a 14 -m 20480 --paired_out --sam --num_alignments 1 --fastx --aligned cont_removed_rRNA --other cont_removed_non_rRNA --log -v
-
-sortmerna --ref /home/quelo/projects/paracletus/user_installed_software/sortmerna-2.1b/rRNA_databases/silva-euk-28s-id98.fasta,/home/quelo/projects/paracletus/user_installed_software/sortmerna-2.1b/index/silva-euk-28s --reads cont_removed_non_rRNA.fastq -a 14 -m 20480 --paired_out --sam --num_alignments 1 --fastx --aligned cont_removed_rRNA2 --other cont_removed_non_rRNA2 --log -v
-
-sortmerna --ref /home/quelo/projects/paracletus/user_installed_software/sortmerna-2.1b/rRNA_databases/silva-bac-16s-id90.fasta,/home/quelo/projects/paracletus/user_installed_software/sortmerna-2.1b/index/silva-bac-16s-db:/home/quelo/projects/paracletus/user_installed_software/sortmerna-2.1b/rRNA_databases/silva-bac-23s-id98.fasta,/home/quelo/projects/paracletus/user_installed_software/sortmerna-2.1b/index/silva-bac-23s-db:/home/quelo/projects/paracletus/user_installed_software/sortmerna-2.1b/rRNA_databases/silva-arc-23s-id98.fasta,/home/quelo/projects/paracletus/user_installed_software/sortmerna-2.1b/index/silva-arc-23s-db:/home/quelo/projects/paracletus/user_installed_software/sortmerna-2.1b/rRNA_databases/silva-arc-16s-id95.fasta,/home/quelo/projects/paracletus/user_installed_software/sortmerna-2.1b/index/silva-arc-16s-db:/home/quelo/projects/paracletus/user_installed_software/sortmerna-2.1b/rRNA_databases/rfam-5s-database-id98.fasta,/home/quelo/projects/paracletus/user_installed_software/sortmerna-2.1b/index/rfam-5s-db:/home/quelo/projects/paracletus/user_installed_software/sortmerna-2.1b/rRNA_databases/rfam-5.8s-database-id98.fasta,/home/quelo/projects/paracletus/user_installed_software/sortmerna-2.1b/index/rfam-5.8s-db --reads cont_removed_non_rRNA2.fastq -a 14 -m 20480 --paired_out --sam --num_alignments 1 --fastx --aligned cont_removed_rRNA3 --other cont_removed_non_rRNA3 --log -v
-
-# count number of fastq reads non rRNA → 131262701, i.e. ~ 3.75M reads removed.
-echo $(cat cont_removed_rRNA3.fastq|wc -l)/8|bc
-
-# split reads into R1 and R2 fastq files
-unmerge-paired-reads.sh cont_removed_non_rRNA3.fastq nonrRNA_decont_R1.fastq nonrRNA_decont_R2.fastq
-
-echo $(cat nonrRNA_decont_R1.fastq|wc -l)/4|bc
-echo $(cat nonrRNA_decont_R2.fastq|wc -l)/4|bc
-
-# running assembly with decontaminated and rRNA removed
-
-cd /home/quelo/projects/paracletus/cleaned_trimmed_reads/filtered_reads
-mkdir assemblies/Trinity_removed_cont_nonrRNA/
-Trinity --seqType fq --max_memory 60G --SS_lib_type RF --min_kmer_cov 2 --left reads/cont_removed_R1.fastq --right reads/cont_removed_R2.fastq --CPU 14 --output assemblies/Trinity_removed_cont_nonrRNA/ 1>assemblies/Trinity_removed_cont_nonrRNA/Trinity.log 2>assemblies/Trinity_removed_cont_nonrRNA/Trinity.err
-
-# use BUSCO to assess completeness of the assembly against arthropoda
-#export BUSCO_CONFIG_FILE="/home/quelo/projects/paracletus/user_installed_software/busco/config/myconfig.ini"
-cd /home/quelo/projects/paracletus/cleaned_trimmed_reads/filtered_reads/assemblies/Trinity_removed_cont_nonRNA
-mkdir BUSCO
-cd BUSCO
-busco -c 14 -m transcriptome -i ../Trinity.fasta -o arthr -l arthropoda_odb10 1>busco_arth.log 2>busco_arth.err
-
-busco -c 14 -m transcriptome -i ../Trinity.fasta -o bact -l bacteria_odb10 1>busco_bact.log 2>busco_bact.err
-
-# get Trinity basic statistics
-cd /home/quelo/projects/paracletus/cleaned_trimmed_reads/filtered_reads/assembly/Trinity_removed_cont_nonrRNA
-mkdir TrinityStats
-cd TrinityStats
-TrinityStats.pl ../Trinity.fasta
-
-
-# cd-hit remove redundancy
-cd /home/quelo/projects/paracletus/cleaned_trimmed_reads/filtered_reads/assembly
-mkdir cdhit cdhit/0.95
-cd cdhit/0.95
-cd-hit-est -i ../../Trinity_removed_cont_nonrRNA/Trinity.fasta -c 0.95 -o decont_nonrRNA_cdhit0.95.fasta -c 0.95 -n 8 -p 1 -g 1 -M 81920 -T 14 -d 40 1>cd-hit-est_0.95.log 2>cd-hit-est_0.95.err
-# reduced the assembly to 411k contigs. Still too much!
-
-
-#-----------------------------------------------------------------------------------------------------------------------#
-
-# apply decontamination with less astringent bowtie2
- # bowtie2 mapping against contamination sequences database, keep both mapped and unmapped reads (paired-end reads)
-cd /home/quelo/projects/paracletus/cleaned_trimmed_reads/filtered_reads/mapping
-mkdir contamination2
-# copied again contamination.fna to contamination2 folder because I thought there was some problem with the old index
-bowtie2-build contamination2/contamination.fna contamination2/contamination
-
-# bowtie2 mapping against contamination sequences database, keep both mapped and unmapped reads (paired-end reads)
-bowtie2 -x contamination2/contamination -p 14 -q --rf --mp 4 --rdg 4,2 --rfg 4,2 -1 ../../R1_pairedout.fastq -2 ../../R2_pairedout.fastq 2>contamination2/align_stats.txt | samtools view -@14 -bS -> contamination2/contamination_mapped_and_unmapped.bam
-bowtie2 -x contamination/contamination -p 14 -q --rf -1 ../../R1_pairedout.fastq -2 ../../R2_pairedout.fastq 2>contamination/align_stats.txt | samtools view -@14 -bS -> contamination/contamination_mapped_and_unmapped.bam 
-# filter required unmapped reads
-# SAMtools SAM-flag filter: get unmapped pairs (both ends unmapped)
-samtools view -@ 14 -b -f 12 -F 256 contamination2/contamination_mapped_and_unmapped.bam > contamination2/SAMPLE_bothEndsUnmapped.bam
-# sort bam file by read name (-n) to have paired reads next to each other as required by bedtools
-samtools sort -n contamination/SAMPLE_bothEndsUnmapped.bam contamination/SAMPLE_bothEndsUnmapped_sorted
-# split paired-end reads into separated fastq files .._r1 .._r2
-bedtools bamtofastq -i contamination2/SAMPLE_bothEndsUnmapped_sorted.bam -fq ../filtered_reads/cont2_removed_R1.fastq -fq2 ../filtered_reads/cont2_removed_R2.fastq
-
-# running assembly on reads with filtered out contamination2 (not endosymbionts, nor mitochondrial)
-cd /home/quelo/projects/paracletus/cleaned_trimmed_reads/filtered_reads
-mkdir assemblies assemblies/Trinity_removed_cont2/
-Trinity --seqType fq --max_memory 60G --SS_lib_type RF --min_kmer_cov 2 --left reads/cont2_removed_R1.fastq --right reads/cont2_removed_R2.fastq --CPU 14 --output assemblies/Trinity_removed_cont2/ 1>assemblies/Trinity_removed_cont2/Trinity.log 2>assemblies/Trinity_removed_cont2/Trinity.err
-
-# get Trinity basic statistics
-cd /home/quelo/projects/paracletus/cleaned_trimmed_reads/filtered_reads/assembly/Trinity_removed_cont2
-mkdir TrinityStats
-cd TrinityStats
-TrinityStats.pl ../Trinity.fasta > Stats.txt
-
-
-# use BUSCO to assess completeness of the assembly against arthropoda
-cd /home/quelo/projects/paracletus/cleaned_trimmed_reads/filtered_reads/assemblies/Trinity_removed_cont2
-mkdir BUSCO
-cd BUSCO
-busco -c 14 -m transcriptome -i ../Trinity.fasta -o arthr -l arthropoda_odb10 1>busco_arth.log 2>busco_arth.err
-
-busco -c 14 -m transcriptome -i ../Trinity.fasta -o bact -l bacteria_odb10 1>busco_bact.log 2>busco_bact.err
-
-busco -c 14 -m transcriptome -i ../Trinity.fasta -o insect -l insecta_odb10 1>busco_insect.log 2>busco_insect.err
-
-
-### DUBTES ###
-
-grep "@" R1_pairedout.fastq | sed 's/\ 1//g'  > h1.txt
-grep "@" R2_pairedout.fastq | sed 's/\ 2//g'  > h2.txt
-diff h1.txt h2.txt > only_in_1.txt
-
-
-
-grep "@" decont7_R1.fastq | sed 's/\/1//g' > h1.txt; grep "@" decont7_R2.fastq | sed 's/\/2//g' > h2.txt
-diff h1.txt h2.txt > only_in_1.txt
-diff h2.txt h1.txt > only_in_2.txt
-
-
-
-#error relaxed decont → apparently, in contamination.fna there are duplicated fasta entries for these five sequences  of ecoli.
-[W::sam_hdr_create] Duplicated sequence 'NC_000913.3'
-[W::sam_hdr_create] Duplicated sequence 'NC_002695.2'
-[W::sam_hdr_create] Duplicated sequence 'NC_002128.1'
-[W::sam_hdr_create] Duplicated sequence 'NC_002127.1'
-NC_000913.3
 ```
