@@ -12,7 +12,7 @@ Scripts for the genome assembly and analysis of the *Paracletus cimiciformis*.
 
 
 
-## Annotation
+## Functional Annotation
 
 ## Differential Expression Analysis
 
