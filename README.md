@@ -5,9 +5,12 @@
 Scripts for the genome assembly and analysis of the *Paracletus cimiciformis*.
 
 
-## Reads cleaning
+## Reads cleaning and Transcriptome Assembly
 
-## Assembly
+- Instructions for removing contaminant  RNA-seq reads and transcriptome assembly.
+	- [Filter_reads_and_assemble.md](Filter_reads_and_assemble.md) 
+
+
 
 ## Annotation
 
