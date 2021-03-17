@@ -55,7 +55,7 @@ Gene_Annots<-AllGenes %>%
   left_join(., Raw_Annots, by=("transcript_id" ) )
 
 #Gene_Annots
-#write.csv(Gene_Annots, gzfile("Data/AfullDEGreport_annotated.tsv.gz"), sep="\t")
+#write.table(Gene_Annots, gzfile("Data/FullDEGreport_annotated.tsv.gz"), sep="\t",quote = FALSE)
 ```
 
 ## Quality Control
