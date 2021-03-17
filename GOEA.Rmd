@@ -35,7 +35,7 @@ knitr::opts_chunk$set(cache = TRUE)
 - All BlastHit from Metazoa, with the P-values and FoldChange from DEA
 
 ```{r message=FALSE, warning=FALSE}
-AllGenes<-read.csv("fullDEGreport.tsv", sep="\t")
+AllGenes<-read.csv("Data/fullDEGreport.tsv", sep="\t")
 # head(AllGenes)
 dim(AllGenes)
 ```
@@ -43,7 +43,7 @@ dim(AllGenes)
 ## Load the transcriptome annotations
 
 ```{r}
-Raw_Annots<-read.csv("../Annotated_Transcriptome_summarisedbyTranscript_V5.tsv", sep="\t")
+Raw_Annots<-read.csv(gzfile("Data/Annotated_Transcriptome_summarisedbyTranscript_V5.tsv.gz"), sep="\t")
 #dim(Raw_Annots)
 #Raw_Annots
 ```
